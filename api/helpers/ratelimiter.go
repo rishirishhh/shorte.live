@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ivinayakg/shorte.live/api/database"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -53,7 +54,7 @@ func GetRateConfig(revalidateCache bool) *RateConfig {
 	} else {
 		var rateConfigFilters = bson.M{"name": RateConfigName}
 
-		err = CurrentDb.Config.FindOne(context.Background(), rateConfigFilters).Decode(rateConfig)
+		err = database.CurrentDb.Config.FindOne(context.Background(), rateConfigFilters).Decode(rateConfig)
 		if err != nil && err != mongo.ErrNoDocuments {
 			fmt.Println(err)
 			return nil
@@ -61,7 +62,7 @@ func GetRateConfig(revalidateCache bool) *RateConfig {
 
 		if err == mongo.ErrNoDocuments {
 			defaultRateConfig := getDefaultRateConfig()
-			res, err := CurrentDb.Config.InsertOne(context.Background(), defaultRateConfig)
+			res, err := database.CurrentDb.Config.InsertOne(context.Background(), defaultRateConfig)
 			if err != nil {
 				fmt.Println(err)
 				return nil

@@ -7,6 +7,7 @@ import UpdateURLModal from "@/components/UpdateURLModal";
 import DeleteURLModal from "@/components/DeleteURLModal";
 import URLCard from "@/components/URLCard";
 import { HeadingOne } from "@/components/typography";
+import StatsURLModal from "@/components/StatsURLModal";
 
 function MyUrls() {
   const { userState } = useMain();
@@ -14,6 +15,7 @@ function MyUrls() {
   const [urlObj, setUrlObj] = useState(null);
   const editRef = useRef<HTMLButtonElement>();
   const deleteRef = useRef<HTMLButtonElement>();
+  const statsRef = useRef<HTMLButtonElement>();
   const { toast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -33,8 +35,8 @@ function MyUrls() {
           });
         }
       })();
-    }else{
-      navigate("/")
+    } else {
+      navigate("/");
     }
   }, [location.pathname, userState.login]);
 
@@ -42,6 +44,8 @@ function MyUrls() {
     <div className="py-5">
       <UpdateURLModal urlObj={urlObj} ref={editRef} />
       <DeleteURLModal urlObj={urlObj} ref={deleteRef} />
+      <StatsURLModal urlObj={urlObj} ref={statsRef} />
+
       <HeadingOne className="font-bold mb-3">Your URLs</HeadingOne>
       <div className="flex flex-col justify-center items-center gap-4">
         {urlsData?.map((url: any) => {
@@ -58,6 +62,10 @@ function MyUrls() {
               onDeleteClick={() => {
                 setUrlObj(url);
                 deleteRef.current?.click();
+              }}
+              onStatsClick={() => {
+                setUrlObj(url);
+                statsRef.current?.click();
               }}
               expiry={date}
             />

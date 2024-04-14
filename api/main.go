@@ -11,9 +11,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/ivinayakg/shorte.live/api/constants"
 	"github.com/ivinayakg/shorte.live/api/controllers"
+	"github.com/ivinayakg/shorte.live/api/database"
 	"github.com/ivinayakg/shorte.live/api/helpers"
 	"github.com/ivinayakg/shorte.live/api/middleware"
 	"github.com/ivinayakg/shorte.live/api/routes"
+	"github.com/ivinayakg/shorte.live/api/timescale"
 	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 )
@@ -39,13 +41,8 @@ func createRouter() *http.Handler {
 	})
 
 	r := mux.NewRouter()
-	helpers.CreateDBInstance()
-	helpers.RedisSetup()
-	helpers.SetupTracker(time.Second*10, 200, 0)
 	r.Use(middleware.LogMW)
 	r.Use(middleware.OriginHandler)
-
-	go helpers.Tracker.StartFlush()
 
 	setupRoutes(r)
 	routerProtected := corsHandler.Handler(r)
@@ -60,6 +57,13 @@ func main() {
 
 	PORT := os.Getenv("PORT")
 	helpers.ENV = os.Getenv("ENV")
+
+	database.CreateDBInstance()
+	timescale.SetupTimeScale()
+	helpers.RedisSetup()
+	helpers.SetupTracker(time.Second*10, 200, 0)
+
+	go helpers.Tracker.StartFlush()
 
 	go func() {
 		if os.Getenv("ENV") == string(constants.Prod) {

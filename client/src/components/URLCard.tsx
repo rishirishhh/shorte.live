@@ -9,12 +9,14 @@ export default function URLCard({
   expiry,
   onEditClick,
   onDeleteClick,
+  onStatsClick,
 }: {
   shortUrl: string;
   destination: string;
   expiry: Date;
   onEditClick: () => void;
   onDeleteClick: () => void;
+  onStatsClick: () => void;
 }) {
   const { toast } = useToast();
   const CopyToClipboard = (value: string, message?: string) => {
@@ -30,14 +32,14 @@ export default function URLCard({
       {/* content */}
       <div className="flex justify-center items-start flex-col gap-4 w-full md:w-4/6 ">
         {/* heading */}
-        <div className="w-full">
-          <HeadingTwo className="text-xl hover:cursor-pointer sm:text-2xl">
-            <button onClick={() => CopyToClipboard(shortUrl)}>
+        <div className="">
+          <HeadingTwo className="w-max text-xl hover:cursor-pointer sm:text-2xl">
+            <button className="w-max" onClick={() => CopyToClipboard(shortUrl)}>
               {shortUrl}
             </button>
             <Link2Icon className="inline-block ml-2 w-5 h-5" />
           </HeadingTwo>
-          <HeadingFour className="text-slate-500 text-base dark:text-slate-400">
+          <HeadingFour className="text-slate-500 text-base dark:text-slate-400 w-[35ch]">
             {destination}
           </HeadingFour>
         </div>
@@ -65,6 +67,13 @@ export default function URLCard({
           className="font-bold md:w-1/6 text-sm sm:text-base"
         >
           Delete
+        </Button>
+        <Button
+          onClick={onStatsClick}
+          variant="secondary"
+          className="font-bold md:w-1/6 text-sm sm:text-base"
+        >
+          Stats
         </Button>
       </div>
     </div>

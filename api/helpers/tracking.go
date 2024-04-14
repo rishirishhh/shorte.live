@@ -2,12 +2,14 @@ package helpers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/ivinayakg/shorte.live/api/database"
+	"github.com/ivinayakg/shorte.live/api/timescale"
+	"gopkg.in/mgo.v2/bson"
 )
 
 type TrackEventType string
@@ -23,19 +25,9 @@ type TrackerType struct {
 
 var Tracker *TrackerType
 
-func flushToDB(events []*bson.M) {
-	var redirectEvents []interface{}
-	for _, data := range events {
-		urlOID, _ := (*data)["url_id"].(primitive.ObjectID)
-		(*data)["url_id"] = urlOID
-		(*data)["geo"] = ""
-
-		redirectEvents = append(redirectEvents, data)
-	}
-
-	if len(redirectEvents) > 0 {
-		_, err := CurrentDb.RedirectEvent.InsertMany(context.TODO(), redirectEvents)
-		if err != nil {
+func flushToDB(events []*database.ClickEvent) {
+	if len(events) > 0 {
+		if err := timescale.InsertClickEventsBulk(events); err != nil {
 			log.Fatal(err)
 		}
 	}
@@ -53,10 +45,10 @@ func (eq *TrackerType) flush() {
 	Redis.Client.LTrim(context.TODO(), track_event_redis_key, int64(eq.eventsLength), -1)
 	eq.eventsLength = 0
 
-	var data []*bson.M
+	var data []*database.ClickEvent
 
 	for _, v := range jsondata {
-		var temp bson.M
+		var temp database.ClickEvent
 		bson.Unmarshal([]byte(v), &temp)
 		data = append(data, &temp)
 	}
@@ -64,16 +56,12 @@ func (eq *TrackerType) flush() {
 	go flushToDB(data)
 }
 
-func (eq *TrackerType) CaptureRedirectEvent(device string, geo string, os string, referrer string, urlId primitive.ObjectID, timestamp int64) {
-	// Your slice
-	data := bson.M{
-		"device":    device,
-		"geo":       geo,
-		"os":        os,
-		"referrer":  referrer,
-		"url_id":    urlId,
-		"timestamp": timestamp,
-	}
+func (eq *TrackerType) CaptureRedirectEvent(device string, ip string, os string, referrer string, urlId string, timestamp int64) {
+	fmt.Println(ip)
+	// add the ip-2-geo location handler here
+	geo := "null"
+
+	data := database.ClickEvent{URLId: urlId, Device: device, Geo: database.CountryName(geo), OS: os, Referrer: referrer, Timestamp: database.UnixTime(timestamp)}
 
 	jsonData, _ := bson.Marshal(data)
 
