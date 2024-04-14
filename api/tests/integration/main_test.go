@@ -94,6 +94,7 @@ func setupRouter() *mux.Router {
 	protectedRouter.HandleFunc("/url/all", controllers.GetUserURL).Methods("GET")
 	protectedRouter.HandleFunc("/url/{id}", controllers.UpdateUrl).Methods("PATCH")
 	protectedRouter.HandleFunc("/url/{id}", controllers.DeleteUrl).Methods("DELETE")
+	protectedRouter.HandleFunc("/url/{id}/stats", controllers.GetURLStats).Methods("GET")
 
 	// system routes
 	router.HandleFunc("/system/available", controllers.SystemAvailable).Methods("GET")
