@@ -59,11 +59,13 @@ func main() {
 	helpers.ENV = os.Getenv("ENV")
 
 	database.CreateDBInstance()
-	timescale.SetupTimeScale()
 	helpers.RedisSetup()
-	helpers.SetupTracker(time.Second*10, 200, 0)
 
-	go helpers.Tracker.StartFlush()
+	if helpers.ENV != string(constants.Prod) {
+		timescale.SetupTimeScale()
+		helpers.SetupTracker(time.Second*10, 200, 0)
+		go helpers.Tracker.StartFlush()
+	}
 
 	go func() {
 		if os.Getenv("ENV") == string(constants.Prod) {

@@ -13,6 +13,7 @@ import (
 	"github.com/asaskevich/govalidator"
 	"github.com/avct/uasurfer"
 	"github.com/gorilla/mux"
+	"github.com/ivinayakg/shorte.live/api/constants"
 	"github.com/ivinayakg/shorte.live/api/database"
 	"github.com/ivinayakg/shorte.live/api/helpers"
 	"github.com/ivinayakg/shorte.live/api/middleware"
@@ -173,7 +174,10 @@ func ResolveURL(w http.ResponseWriter, r *http.Request) {
 
 		timestamp := time.Now().Unix()
 
-		helpers.Tracker.CaptureRedirectEvent(device, ip, os, referrer, urlId, timestamp)
+		if helpers.ENV != string(constants.Prod) {
+			helpers.Tracker.CaptureRedirectEvent(device, ip, os, referrer, urlId, timestamp)
+		}
+
 	}(r, *url)
 
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
