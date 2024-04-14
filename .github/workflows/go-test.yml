@@ -20,6 +20,15 @@ jobs:
         image: redis:latest
         ports:
           - 6349:6379
+
+      timescaledb:
+        image: timescale/timescaledb-ha:pg16
+        env:
+          POSTGRES_PASSWORD: yourpassword
+          POSTGRES_DB: shorte_events
+        ports:
+          - "5432:5432"
+
     strategy:
       matrix:
         go-version: ["1.20"]

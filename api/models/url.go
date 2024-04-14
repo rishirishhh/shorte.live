@@ -7,17 +7,18 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ivinayakg/shorte.live/api/database"
 	"github.com/ivinayakg/shorte.live/api/helpers"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gopkg.in/mgo.v2/bson"
 )
 
-func CreateURL(user *User, short string, destination string, expiry int64) (*URL, error) {
-	url := new(URL)
+func CreateURL(user *database.User, short string, destination string, expiry int64) (*database.URL, error) {
+	url := new(database.URL)
 
 	if short != "" {
-		err := helpers.CurrentDb.Url.FindOne(context.TODO(), bson.M{"short": short}).Decode(&url)
+		err := database.CurrentDb.Url.FindOne(context.TODO(), bson.M{"short": short}).Decode(&url)
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				fmt.Println("url Document not found")
@@ -35,13 +36,13 @@ func CreateURL(user *User, short string, destination string, expiry int64) (*URL
 	url.User = user.ID
 	url.Short = short
 	url.Destination = destination
-	url.Expiry = UnixTime(expiry)
-	// url.UpdateAt = UnixTime(time.Now().Unix())
-	url.CreatedAt = UnixTime(time.Now().Unix())
+	url.Expiry = database.UnixTime(expiry)
+	// url.UpdateAt = database.UnixTime(time.Now().Unix())
+	url.CreatedAt = database.UnixTime(time.Now().Unix())
 	url.ID = primitive.NilObjectID
 	ctx := context.TODO()
 
-	res, err := helpers.CurrentDb.Url.InsertOne(ctx, url)
+	res, err := database.CurrentDb.Url.InsertOne(ctx, url)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -55,8 +56,8 @@ func CreateURL(user *User, short string, destination string, expiry int64) (*URL
 	return url, nil
 }
 
-func GetURL(short string, id string) (*URL, error) {
-	url := new(URL)
+func GetURL(short string, id string) (*database.URL, error) {
+	url := new(database.URL)
 
 	ctx := context.TODO()
 
@@ -72,7 +73,7 @@ func GetURL(short string, id string) (*URL, error) {
 		urlFilter = bson.M{"_id": urlObjectId}
 	}
 
-	err := helpers.CurrentDb.Url.FindOne(ctx, urlFilter).Decode(url)
+	err := database.CurrentDb.Url.FindOne(ctx, urlFilter).Decode(url)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -82,19 +83,19 @@ func GetURL(short string, id string) (*URL, error) {
 	return url, nil
 }
 
-func GetUserURL(userId primitive.ObjectID) ([]*URL, error) {
+func GetUserURL(userId primitive.ObjectID) ([]*database.URL, error) {
 	ctx := context.TODO()
 	urlFilter := bson.M{"user": userId}
 
-	curr, err := helpers.CurrentDb.Url.Find(ctx, urlFilter)
+	curr, err := database.CurrentDb.Url.Find(ctx, urlFilter)
 	if err != nil {
 		return nil, err
 	}
 	defer curr.Close(context.TODO())
 
-	var results []*URL
+	var results []*database.URL
 	for curr.Next(context.TODO()) {
-		var result URL
+		var result database.URL
 		e := curr.Decode(&result)
 		if e != nil {
 			fmt.Println(err)
@@ -110,7 +111,7 @@ func GetUserURL(userId primitive.ObjectID) ([]*URL, error) {
 	return results, nil
 }
 
-func UpdateUserURL(userId primitive.ObjectID, urlId string, newShort string, destination string, expiry UnixTime) error {
+func UpdateUserURL(userId primitive.ObjectID, urlId string, newShort string, destination string, expiry database.UnixTime) error {
 	urlObjectId, err := primitive.ObjectIDFromHex(urlId)
 	if err != nil {
 		fmt.Println(err)
@@ -121,7 +122,7 @@ func UpdateUserURL(userId primitive.ObjectID, urlId string, newShort string, des
 	urlFilter := bson.M{"user": userId, "_id": urlObjectId}
 
 	// Check if the document exists
-	count, err := helpers.CurrentDb.Url.CountDocuments(ctx, urlFilter)
+	count, err := database.CurrentDb.Url.CountDocuments(ctx, urlFilter)
 	if err != nil {
 		fmt.Println(err)
 		return err
@@ -134,7 +135,7 @@ func UpdateUserURL(userId primitive.ObjectID, urlId string, newShort string, des
 
 	updateData := bson.M{"$set": bson.M{"short": newShort, "destination": destination, "expiry": expiry}}
 
-	res, err := helpers.CurrentDb.Url.UpdateOne(ctx, urlFilter, updateData)
+	res, err := database.CurrentDb.Url.UpdateOne(ctx, urlFilter, updateData)
 	if err != nil {
 		if writeError, ok := err.(mongo.WriteException); ok && writeError.WriteErrors[0].Code == 11000 {
 			fmt.Println(err)
@@ -161,7 +162,7 @@ func UpdateUserURLVisited(urlId string, visited time.Time) error {
 	urlFilter := bson.M{"_id": urlObjectId}
 	updateData := bson.M{"$set": bson.M{"lastvisited": visited}}
 
-	res, err := helpers.CurrentDb.Url.UpdateOne(ctx, urlFilter, updateData)
+	res, err := database.CurrentDb.Url.UpdateOne(ctx, urlFilter, updateData)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			fmt.Println("URL Document not found")
@@ -186,7 +187,7 @@ func DeleteURL(userId primitive.ObjectID, urlId string) error {
 	ctx := context.TODO()
 	urlFilter := bson.M{"user": userId, "_id": urlObjectId}
 
-	res, err := helpers.CurrentDb.Url.DeleteOne(ctx, urlFilter)
+	res, err := database.CurrentDb.Url.DeleteOne(ctx, urlFilter)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			fmt.Println("URL Document not found")

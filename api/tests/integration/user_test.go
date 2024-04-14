@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/ivinayakg/shorte.live/api/models"
+	"github.com/ivinayakg/shorte.live/api/database"
 	"github.com/ivinayakg/shorte.live/api/utils"
 	"github.com/stretchr/testify/assert"
 	"go.mongodb.org/mongo-driver/bson"
@@ -30,7 +30,7 @@ func TestGoogleLogin(t *testing.T) {
 }
 
 func TestSelfUser(t *testing.T) {
-	user := models.User{}
+	user := database.User{}
 
 	TestDb.User.FindOne(context.Background(), bson.M{"email": "test1@gmail.com"}).Decode(&user)
 

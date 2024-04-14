@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ivinayakg/shorte.live/api/database"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -41,7 +42,7 @@ func GetSystemConfig(revalidateCache bool) *SystemConfig {
 	} else {
 		var systemConfigFilters = bson.M{"name": SystemConfigName}
 
-		err = CurrentDb.Config.FindOne(context.Background(), systemConfigFilters).Decode(systemConfig)
+		err = database.CurrentDb.Config.FindOne(context.Background(), systemConfigFilters).Decode(systemConfig)
 		if err != nil && err != mongo.ErrNoDocuments {
 			fmt.Println(err)
 			return nil
@@ -49,7 +50,7 @@ func GetSystemConfig(revalidateCache bool) *SystemConfig {
 
 		if err == mongo.ErrNoDocuments {
 			defaultSystemConfig := GetDefaultSystemConfig()
-			res, err := CurrentDb.Config.InsertOne(context.Background(), defaultSystemConfig)
+			res, err := database.CurrentDb.Config.InsertOne(context.Background(), defaultSystemConfig)
 			if err != nil {
 				fmt.Println(err)
 				return nil

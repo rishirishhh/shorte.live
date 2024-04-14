@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/ivinayakg/shorte.live/api/models"
+	"github.com/ivinayakg/shorte.live/api/database"
 )
 
-func CreateJWT(user *models.User) (*string, error) {
+func CreateJWT(user *database.User) (*string, error) {
 	var secretKey = []byte(os.Getenv("JWT_SECRET_KEY"))
 	var expiry = os.Getenv("JWT_EXPIRY")
 	expiryTotal, err := strconv.Atoi(expiry)

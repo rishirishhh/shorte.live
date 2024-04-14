@@ -11,9 +11,10 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/ivinayakg/shorte.live/api/controllers"
+	"github.com/ivinayakg/shorte.live/api/database"
 	"github.com/ivinayakg/shorte.live/api/helpers"
 	"github.com/ivinayakg/shorte.live/api/middleware"
-	"github.com/ivinayakg/shorte.live/api/models"
+	"github.com/ivinayakg/shorte.live/api/timescale"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,7 +22,7 @@ import (
 
 var (
 	ServerURL    string
-	TestDb       *helpers.DB
+	TestDb       *database.DB
 	TestRedis    *helpers.RedisDB
 	TestDbClient *mongo.Client
 )
@@ -30,11 +31,11 @@ var (
 // - Ratelimiting
 // - System Maintenance
 
-var UserFixture1 = models.User{Name: "Test User 1", Email: "test1@gmail.com", Picture: "https://lh3.googleusercontent.com/a-/AOh14Gh"}
-var UserFixture2 = models.User{Name: "Test User 2", Email: "test2@gmail.com", Picture: "https://lh3.googleusercontent.com/a-/AOh14Gh"}
+var UserFixture1 = database.User{Name: "Test User 1", Email: "test1@gmail.com", Picture: "https://lh3.googleusercontent.com/a-/AOh14Gh"}
+var UserFixture2 = database.User{Name: "Test User 2", Email: "test2@gmail.com", Picture: "https://lh3.googleusercontent.com/a-/AOh14Gh"}
 
-var URLFixture = &models.URL{User: primitive.NilObjectID, Destination: "https://www.google.com", Expiry: models.UnixTime(time.Now().Add(time.Hour * 5).Unix()), Short: "test", UpdateAt: models.UnixTime(time.Now().Unix()), CreatedAt: models.UnixTime(time.Now().Unix())}
-var ExpiredURLFixture = &models.URL{User: primitive.NilObjectID, Destination: "https://www.google.com", Expiry: models.UnixTime(time.Now().Add(-time.Hour).Unix()), Short: "test_expired", UpdateAt: models.UnixTime(time.Now().Unix()), CreatedAt: models.UnixTime(time.Now().Unix())}
+var URLFixture = &database.URL{User: primitive.NilObjectID, Destination: "https://www.google.com", Expiry: database.UnixTime(time.Now().Add(time.Hour * 5).Unix()), Short: "test", UpdateAt: database.UnixTime(time.Now().Unix()), CreatedAt: database.UnixTime(time.Now().Unix())}
+var ExpiredURLFixture = &database.URL{User: primitive.NilObjectID, Destination: "https://www.google.com", Expiry: database.UnixTime(time.Now().Add(-time.Hour).Unix()), Short: "test_expired", UpdateAt: database.UnixTime(time.Now().Unix()), CreatedAt: database.UnixTime(time.Now().Unix())}
 
 func TestMain(m *testing.M) {
 	teardown := setupTests()
@@ -54,16 +55,17 @@ func setupTests() func() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	helpers.CreateDBInstance()
+	database.CreateDBInstance()
+	timescale.SetupTimeScale()
 	helpers.RedisSetup()
 	helpers.SetupTracker(time.Second*2, 5, 0)
 	helpers.ENV = "test"
 
 	go helpers.Tracker.StartFlush()
 
-	TestDb = helpers.CurrentDb
+	TestDb = database.CurrentDb
 	TestRedis = helpers.Redis
-	TestDbClient = helpers.DBClient
+	TestDbClient = database.DBClient
 	// clean up database after tests
 
 	CreateFixtures(TestDb)
@@ -92,6 +94,7 @@ func setupRouter() *mux.Router {
 	protectedRouter.HandleFunc("/url/all", controllers.GetUserURL).Methods("GET")
 	protectedRouter.HandleFunc("/url/{id}", controllers.UpdateUrl).Methods("PATCH")
 	protectedRouter.HandleFunc("/url/{id}", controllers.DeleteUrl).Methods("DELETE")
+	protectedRouter.HandleFunc("/url/{id}/stats", controllers.GetURLStats).Methods("GET")
 
 	// system routes
 	router.HandleFunc("/system/available", controllers.SystemAvailable).Methods("GET")
@@ -101,7 +104,7 @@ func setupRouter() *mux.Router {
 	return router
 }
 
-func CreateFixtures(db *helpers.DB) {
+func CreateFixtures(db *database.DB) {
 	userRes, _ := db.User.InsertOne(context.Background(), UserFixture2)
 	UserFixture2.ID = userRes.InsertedID.(primitive.ObjectID)
 	userRes, _ = db.User.InsertOne(context.Background(), UserFixture1)
@@ -114,6 +117,7 @@ func CreateFixtures(db *helpers.DB) {
 	ExpiredURLFixture.User = UserFixture1.ID
 
 	urlRes, _ := db.Url.InsertOne(context.Background(), URLFixture)
+	fmt.Println(urlRes, "urlRes.InsertedID")
 	URLFixture.ID = urlRes.InsertedID.(primitive.ObjectID)
 
 	urlRes, _ = db.Url.InsertOne(context.Background(), ExpiredURLFixture)

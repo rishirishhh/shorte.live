@@ -13,9 +13,11 @@ import (
 	"github.com/asaskevich/govalidator"
 	"github.com/avct/uasurfer"
 	"github.com/gorilla/mux"
+	"github.com/ivinayakg/shorte.live/api/database"
 	"github.com/ivinayakg/shorte.live/api/helpers"
 	"github.com/ivinayakg/shorte.live/api/middleware"
 	"github.com/ivinayakg/shorte.live/api/models"
+	"github.com/ivinayakg/shorte.live/api/timescale"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -39,7 +41,7 @@ type UpdateURLRequest struct {
 }
 
 func ShortenURL(w http.ResponseWriter, r *http.Request) {
-	userData := r.Context().Value(middleware.UserAuthKey).(*models.User)
+	userData := r.Context().Value(middleware.UserAuthKey).(*database.User)
 	body := new(ShortenURLRequest)
 	preoccupiedShorts := []string{"url", "user", "system", "shorte.live"}
 
@@ -95,7 +97,7 @@ func ShortenURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func ResolveURL(w http.ResponseWriter, r *http.Request) {
-	url := &models.URL{}
+	url := &database.URL{}
 	urlExpiredOrNotFound := true
 	var err error
 
@@ -155,7 +157,7 @@ func ResolveURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go func(r *http.Request, url models.URL) {
+	go func(r *http.Request, url database.URL) {
 		userAgent := r.Header.Get("User-Agent")
 		ua := uasurfer.Parse(userAgent)
 
@@ -163,7 +165,7 @@ func ResolveURL(w http.ResponseWriter, r *http.Request) {
 		ip := strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]
 		os := ua.OS.Name.String()
 		referrer := r.Header.Get("Referer")
-		urlId := url.ID
+		urlId := url.ID.Hex()
 
 		if referrer == "" {
 			referrer = "direct"
@@ -179,7 +181,7 @@ func ResolveURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUserURL(w http.ResponseWriter, r *http.Request) {
-	userData := r.Context().Value(middleware.UserAuthKey).(*models.User)
+	userData := r.Context().Value(middleware.UserAuthKey).(*database.User)
 
 	urls, err := models.GetUserURL(userData.ID)
 	if err != nil && err != mongo.ErrNoDocuments {
@@ -197,7 +199,7 @@ func GetUserURL(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateUrl(w http.ResponseWriter, r *http.Request) {
-	userData := r.Context().Value(middleware.UserAuthKey).(*models.User)
+	userData := r.Context().Value(middleware.UserAuthKey).(*database.User)
 	vars := mux.Vars(r)
 	urlId := vars["id"]
 	reqData := new(UpdateURLRequest)
@@ -220,7 +222,7 @@ func UpdateUrl(w http.ResponseWriter, r *http.Request) {
 		reqData.Destination = url.Destination
 	}
 
-	var expiry = models.UnixTime(reqData.Expiry)
+	var expiry = database.UnixTime(reqData.Expiry)
 	if reqData.Expiry < helpers.LowestUnixTime() {
 		expiry = url.Expiry
 	}
@@ -237,7 +239,7 @@ func UpdateUrl(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteUrl(w http.ResponseWriter, r *http.Request) {
-	userData := r.Context().Value(middleware.UserAuthKey).(*models.User)
+	userData := r.Context().Value(middleware.UserAuthKey).(*database.User)
 	vars := mux.Vars(r)
 	urlId := vars["id"]
 
@@ -256,4 +258,55 @@ func DeleteUrl(w http.ResponseWriter, r *http.Request) {
 
 	helpers.SetHeaders("DELETE", w, http.StatusNoContent)
 	json.NewEncoder(w).Encode(map[string]string{"message": "successfully deleted"})
+}
+
+func GetURLStats(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	urlId := vars["id"]
+	userData := r.Context().Value(middleware.UserAuthKey).(*database.User)
+
+	startTimeStr := r.URL.Query().Get("start")
+	endTimeStr := r.URL.Query().Get("end")
+
+	var startTime, endTime int64
+
+	if startTimeStr == "" {
+		startTime = time.Now().Add(-time.Hour * 24).Unix()
+	} else {
+		startTime, _ = strconv.ParseInt(startTimeStr, 10, 64)
+		if startTime < time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).Unix() || startTime > time.Now().Unix() {
+			helpers.SendJSONError(w, http.StatusBadRequest, "invalid start time")
+			return
+		}
+	}
+
+	if endTimeStr == "" {
+		endTime = time.Now().Unix()
+	} else {
+		endTime, _ = strconv.ParseInt(endTimeStr, 10, 64)
+		if endTime > time.Now().Unix() {
+			helpers.SendJSONError(w, http.StatusBadRequest, "invalid end time")
+			return
+		}
+	}
+
+	url, err := models.GetURL("", urlId)
+	if err != nil || url == nil {
+		helpers.SendJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if url.User.Hex() != userData.ID.Hex() {
+		helpers.SendJSONError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	stats, err := timescale.QueryClickEvents(urlId, startTime, endTime)
+	if err != nil {
+		helpers.SendJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	helpers.SetHeaders("GET", w, http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{"message": "successfully updated", "data": stats})
 }

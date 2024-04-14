@@ -1,11 +1,29 @@
-package models
+package database
 
 import (
+	"database/sql/driver"
+	"fmt"
+	"time"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type UnixTime int64
 type CountryName string
+
+func (u UnixTime) Value() (driver.Value, error) {
+	return time.Unix(int64(u), 0), nil
+}
+
+func (ut *UnixTime) Scan(value interface{}) error {
+	switch v := value.(type) {
+	case time.Time:
+		*ut = UnixTime(v.Unix())
+		return nil
+	default:
+		return fmt.Errorf("cannot convert %v to UnixTime", value)
+	}
+}
 
 type User struct {
 	Name      string             `json:"name" validate:"required"`
@@ -28,13 +46,11 @@ type URL struct {
 	TotalClicks int64              `json:"total_clicks" bson:"total_clicks"`
 }
 
-type RedirectEvent struct {
-	URLId     primitive.ObjectID `json:"url_id,omitempty" bson:"url_id,omitempty"`
-	URL       *URL               `json:"url_obj" bson:"-"`
-	ID        primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
-	Geo       CountryName        `json:"geo" bson:"geo"`
-	Device    string             `json:"device" bson:"device"`
-	OS        string             `json:"os" bson:"os"`
-	Referrer  string             `json:"referrer" bson:"referrer"`
-	Timestamp UnixTime           `json:"timestamp" bson:"timestamp"`
+type ClickEvent struct {
+	URLId     string      `json:"url_id,omitempty"`
+	Geo       CountryName `json:"geo"`
+	Device    string      `json:"device"`
+	OS        string      `json:"os"`
+	Referrer  string      `json:"referrer"`
+	Timestamp UnixTime    `json:"timestamp"`
 }
