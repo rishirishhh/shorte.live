@@ -23,7 +23,7 @@ jobs:
 
       timescaledb:
         image: timescale/timescaledb-ha:pg16
-        environment:
+        env:
           - POSTGRES_PASSWORD=yourpassword
           - POSTGRES_DB=shorte_events
         ports:
