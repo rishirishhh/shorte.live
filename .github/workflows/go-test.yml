@@ -23,7 +23,6 @@ jobs:
 
       timescaledb:
         image: timescale/timescaledb-ha:pg16
-        command: postgres -c max_wal_size=2GB
         environment:
           - POSTGRES_PASSWORD=yourpassword
           - POSTGRES_DB=shorte_events
